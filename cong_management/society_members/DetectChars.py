@@ -6,7 +6,7 @@ import random
 import cv2
 import numpy as np
 
-import Main
+import views
 import PossibleChar
 import Preprocess
 

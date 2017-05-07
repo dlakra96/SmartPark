@@ -1,7 +1,9 @@
+from django.db.models.fields import return_None
 from django.http import HttpResponse
-from django.shortcuts import render
+from twilio.rest import Client
 from django.template import loader
 from .models import members
+from django import template
 from django.conf import settings
 from django.shortcuts import get_object_or_404,render
 import os
@@ -10,150 +12,104 @@ import cv2
 
 import DetectChars
 import DetectPlates
+import PossiblePlate
 
 def index(request):
-
     all_members = members.objects.all()
     template = loader.get_template('society_members/FrontPage.html')
     context = {
-        'all_members' : all_members,
+        'all_members': all_members,
     }
+    return HttpResponse(template.render(context, request))
 
-    print("Hello")
-    return render(request,"society_nu,bers/FrontPage.html",context)
-def manage(request):
+def number_search(request):
 
-        print request.POST
-        SCALAR_BLACK = (0.0, 0.0, 0.0)
-        SCALAR_WHITE = (255.0, 255.0, 255.0)
-        SCALAR_YELLOW = (0.0, 255.0, 255.0)
-        SCALAR_GREEN = (0.0, 255.0, 0.0)
-        SCALAR_RED = (0.0, 0.0, 255.0)
-        showSteps = False
+    flag=False
 
-        def main():
+    mobile_no=""
+    car_no="TN176000"
+    all_members = members.objects.all()
+    for m in all_members:
+        if(m.car_number==car_no):
+            mobile_no=m.mobile_number
+            flag=True
+            break
+    if flag==False:
+        return HttpResponse("<p style='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>No mobile number present in the database</p>")
+    else:
+        account_sid = "ACc232c3ba5ef74fd4317e5541f32a1560"
+        auth_token = "117e21868ac9f3b1f0aa4358299e78f1"
 
-            blnKNNTrainingSuccessful = DetectChars.loadKNNDataAndTrainKNN()  # attempt KNN training
+        client = Client(account_sid, auth_token)
 
-            if blnKNNTrainingSuccessful == False:  # if KNN training was not successful
-                print "\nerror: KNN traning was not successful\n"  # show error message
-                return  # and exit program
-            # end if
+        message = client.messages.create(
+            to="+91"+str(mobile_no)+"",
+            from_="+12055881778",
+            body="Your Car is in Queue....")
+        return HttpResponse("<p style='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>Message sent to the concerned user</p>")
 
-            imgOriginalScene = cv2.imread(image)
-            # open image
 
-            if imgOriginalScene is None:  # if image was not read successfully
-                print "\nerror: image not read from file \n\n"  # print error message to std out
-                os.system("pause")  # pause so user can see error message
-                return  # and exit program
-            # end if
+def detail(request,members_id):
+    return HttpResponse("<h2> Details for Car Number is :"+str(members.id)+"</h2>")
+def manage_other(request):
+        all_members = members.objects.all()
 
-            listOfPossiblePlates = DetectPlates.detectPlatesInScene(imgOriginalScene)  # detect plates
+        context = {
+            'all_members': all_members,
+            }
 
-            listOfPossiblePlates = DetectChars.detectCharsInPlates(listOfPossiblePlates)  # detect chars in plates
+        if(request.method=="POST"):
+            SCALAR_BLACK = (0.0, 0.0, 0.0)
+            SCALAR_WHITE = (255.0, 255.0, 255.0)
+            SCALAR_YELLOW = (0.0, 255.0, 255.0)
+            SCALAR_GREEN = (0.0, 255.0, 0.0)
+            SCALAR_RED = (0.0, 0.0, 255.0)
+            showSteps = False
+            image = request.GET.get("img")
+            def main():
 
-            cv2.imshow("imgOriginalScene", imgOriginalScene)  # show scene image
+                blnKNNTrainingSuccessful = DetectChars.loadKNNDataAndTrainKNN()  # attempt KNN training
 
-            if len(listOfPossiblePlates) == 0:  # if no plates were found
-                print "\nno license plates were detected\n"  # inform user no plates were found
-            else:  # else
-                # if we get in here list of possible plates has at leat one plate
+                if blnKNNTrainingSuccessful == False:  # if KNN training was not successful
 
-                # sort the list of possible plates in DESCENDING order (most number of chars to least number of chars)
-                listOfPossiblePlates.sort(key=lambda possiblePlate: len(possiblePlate.strChars), reverse=True)
-
-                # suppose the plate with the most recognized chars (the first plate in sorted by string length descending order) is the actual plate
-                licPlate = listOfPossiblePlates[0]
-
-                cv2.imshow("imgPlate", licPlate.imgPlate)  # show crop of plate and threshold of plate
-                cv2.imshow("imgThresh", licPlate.imgThresh)
-
-                if len(licPlate.strChars) == 0:  # if no chars were found in the plate
-                    print "\nno characters were detected\n\n"  # show message
-                    return  # and exit program
+                    return HttpResponse("<pstyle='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>error: KNN traning was not successful</p>")  # and exit program
                 # end if
 
-                drawRedRectangleAroundPlate(imgOriginalScene, licPlate)  # draw red rectangle around plate
+                imgOriginalScene = cv2.imread(image)
+                # open image
 
-                print "\nlicense plate read from image = " + licPlate.strChars + "\n"  # write license plate text to std out
-                print "----------------------------------------"
-                writeLicensePlateCharsOnImage(imgOriginalScene, licPlate)  # write license plate text on the image
+                if imgOriginalScene is None:  # if image was not read successfully
+                    return HttpResponse("<pstyle='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>error: image not read from file</p>")  # and exit program
+                # end if
 
-                cv2.imshow("imgOriginalScene", imgOriginalScene)  # re-show scene image
+                listOfPossiblePlates = DetectPlates.detectPlatesInScene(imgOriginalScene)  # detect plates
 
-                cv2.imwrite("imgOriginalScene.png", imgOriginalScene)  # write image out to file
+                listOfPossiblePlates = DetectChars.detectCharsInPlates(listOfPossiblePlates)  # detect chars in plates
 
-            # end if else
 
-            cv2.waitKey(0)  # hold windows open until user presses a key
-            return HttpResponse("<p>Matched Car Number is" + licPlate.strChars + "</p>")
+                if len(listOfPossiblePlates) == 0:  # if no plates were found
+                    msg="\nno license plates were detected\n"  # inform user no plates were found
+                else:  # else
+                    # if we get in here list of possible plates has at leat one plate
 
-        # end main
+                    # sort the list of possible plates in DESCENDING order (most number of chars to least number of chars)
+                    listOfPossiblePlates.sort(key=lambda possiblePlate: len(possiblePlate.strChars), reverse=True)
 
-        ###################################################################################################
-        def drawRedRectangleAroundPlate(imgOriginalScene, licPlate):
+                    # suppose the plate with the most recognized chars (the first plate in sorted by string length descending order) is the actual plate
+                    licPlate = listOfPossiblePlates[0]
 
-            p2fRectPoints = cv2.boxPoints(licPlate.rrLocationOfPlateInScene)  # get 4 vertices of rotated rect
 
-            cv2.line(imgOriginalScene, tuple(p2fRectPoints[0]), tuple(p2fRectPoints[1]), SCALAR_RED,
-                     2)  # draw 4 red lines
-            cv2.line(imgOriginalScene, tuple(p2fRectPoints[1]), tuple(p2fRectPoints[2]), SCALAR_RED, 2)
-            cv2.line(imgOriginalScene, tuple(p2fRectPoints[2]), tuple(p2fRectPoints[3]), SCALAR_RED, 2)
-            cv2.line(imgOriginalScene, tuple(p2fRectPoints[3]), tuple(p2fRectPoints[0]), SCALAR_RED, 2)
+                    if len(licPlate.strChars) == 0:  # if no chars were found in the plate
 
-        # end function
+                        return HttpResponse("<pstyle='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>no characters were detected</p>")
+                    # end if
 
-        ###################################################################################################
-        def writeLicensePlateCharsOnImage(imgOriginalScene, licPlate):
-            ptCenterOfTextAreaX = 0  # this will be the center of the area the text will be written to
-            ptCenterOfTextAreaY = 0
 
-            ptLowerLeftTextOriginX = 0  # this will be the bottom left of the area that the text will be written to
-            ptLowerLeftTextOriginY = 0
 
-            sceneHeight, sceneWidth, sceneNumChannels = imgOriginalScene.shape
-            plateHeight, plateWidth, plateNumChannels = licPlate.imgPlate.shape
 
-            intFontFace = cv2.FONT_HERSHEY_SIMPLEX  # choose a plain jane font
-            fltFontScale = float(plateHeight) / 30.0  # base font scale on height of plate area
-            intFontThickness = int(round(fltFontScale * 1.5))  # base font thickness on font scale
 
-            textSize, baseline = cv2.getTextSize(licPlate.strChars, intFontFace, fltFontScale,
-                                                 intFontThickness)  # call getTextSize
-
-            # unpack roatated rect into center point, width and height, and angle
-            ((intPlateCenterX, intPlateCenterY), (intPlateWidth, intPlateHeight),
-             fltCorrectionAngleInDeg) = licPlate.rrLocationOfPlateInScene
-
-            intPlateCenterX = int(intPlateCenterX)  # make sure center is an integer
-            intPlateCenterY = int(intPlateCenterY)
-
-            ptCenterOfTextAreaX = int(
-                intPlateCenterX)  # the horizontal location of the text area is the same as the plate
-
-            if intPlateCenterY < (sceneHeight * 0.75):  # if the license plate is in the upper 3/4 of the image
-                ptCenterOfTextAreaY = int(round(intPlateCenterY)) + int(
-                    round(plateHeight * 1.6))  # write the chars in below the plate
-            else:  # else if the license plate is in the lower 1/4 of the image
-                ptCenterOfTextAreaY = int(round(intPlateCenterY)) - int(
-                    round(plateHeight * 1.6))  # write the chars in above the plate
-            # end if
-
-            textSizeWidth, textSizeHeight = textSize  # unpack text size width and height
-
-            ptLowerLeftTextOriginX = int(
-                ptCenterOfTextAreaX - (textSizeWidth / 2))  # calculate the lower left origin of the text area
-            ptLowerLeftTextOriginY = int(
-                ptCenterOfTextAreaY + (textSizeHeight / 2))  # based on the text area center, width, and height
-
-            # write the text on the image
-            cv2.putText(imgOriginalScene, licPlate.strChars, (ptLowerLeftTextOriginX, ptLowerLeftTextOriginY),
-                        intFontFace,
-                        fltFontScale, SCALAR_YELLOW, intFontThickness)
-
-        # end function
-
-        ###################################################################################################
-        if __name__ == "__main__":
-            main()
+                return HttpResponse("<pstyle='color:red;font-size:20px;font-family:tahoma,times,calibri;padding-left:500px;padding-top:40px;background-color:cyan;'>Matched Car Number is" + licPlate.strChars + "</p>")
+            if __name__ == "__main__":
+                main()
+        else:
+            return render(request,'society_members/FrontPage.html',context)

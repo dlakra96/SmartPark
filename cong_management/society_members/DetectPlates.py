@@ -7,7 +7,7 @@ import cv2
 import numpy as np
 
 import DetectChars
-import Main
+import views
 import PossibleChar
 import PossiblePlate
 import Preprocess
